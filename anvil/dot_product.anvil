@@ -1,10 +1,14 @@
 // =============================================================================
 // Vector Dot-Product Accelerator — Anvil Implementation
+// Equivalent to SystemVerilog dot_product.sv
+// DATA_W = 8 bits (element width)
+// Products = 16 bits
+// Accumulator = 20 bits
 // =============================================================================
 
 struct element_pair {
-    a : logic[16],
-    b : logic[16]
+    a : logic[8],
+    b : logic[8]
 }
 
 struct command {
@@ -13,7 +17,7 @@ struct command {
 }
 
 struct tagged_result {
-    value : logic[32],
+    value : logic[20],
     tag   : logic[4]
 }
 
@@ -30,7 +34,7 @@ chan elem_ch {
 
 chan lane_ch {
     left  lane_req : (element_pair @ lane_req),
-    right lane_res : (logic[32] @ #1)
+    right lane_res : (logic[16] @ #1)
 }
 
 chan result_ch {
@@ -46,13 +50,15 @@ proc LaneWorker(lane : right lane_ch) {
         let pair = recv lane.lane_req >>
         let product = pair.a * pair.b >>
         send lane.lane_res(product) >>
-        cycle 1;
+        cycle 1
     }
 }
 
 // -----------------------------------------------------------------------------
 // Main DotProduct Accelerator Process
-// -----------------------------------------------------------------------------
+// Models the behavior of the SystemVerilog state machine:
+// IDLE → LOAD (fill lanes) → REDUCE (accumulate) → OUTPUT (send result) → IDLE
+// =============================================================================
 proc DotProduct(
     cmd  : left cmd_ch,
     elem : left elem_ch,
@@ -62,91 +68,115 @@ proc DotProduct(
     l2   : left lane_ch,
     l3   : left lane_ch
 ) {
-    reg accum     : logic[32];
-    reg remaining : logic[8];
-    reg saved_tag : logic[4];
-    reg group_len : logic[3];
+    reg accum         : logic[20];
+    reg remaining     : logic[8];
+    reg saved_tag     : logic[4];
+    reg group_len     : logic[3];
+    reg lane_valid    : logic[4];
 
     loop {
+        // ===================================================================
+        // IDLE: Wait for a command
+        // ===================================================================
         let cmd_data = recv cmd.cmd_req >>
         set saved_tag := cmd_data.tag >>
-        set accum     := 32'd0 >>
+        set accum     := 20'd0 >>
         set remaining := cmd_data.length >>
-        send cmd.cmd_res 1'b1 >>
-
+        set lane_valid := 0
         loop {
+            // ================================================================
+            // LOAD: Fill lanes with element pairs (groups of up to 4 elements)
+            // ================================================================
             if (*remaining == 8'd0) {
+                // All elements loaded — exit to reduce phase
                 cycle 1
             } else {
+                // Determine group size (up to 4, but limited by remaining)
                 if (*remaining >= 8'd4) {
                     set group_len := 3'd4
                 } else {
                     set group_len := (*remaining)[2:0]
                 } >>
 
-                // Lane 0
+                // Reset lane validity for this group
+                set lane_valid := 4'b0000 >>
+
+                // Load Lane 0 (always)
                 let pair0 = recv elem.in_req >>
                 set remaining := *remaining - 8'd1 >>
                 send elem.in_res 1'b1 >>
                 send l0.lane_req pair0 >>
+                set lane_valid := 1 >>
 
-                // Lane 1
+                // Load Lane 1 (if group_len >= 2)
                 if (*group_len >= 3'd2) {
                     let pair1 = recv elem.in_req >>
                     set remaining := *remaining - 8'd1 >>
                     send elem.in_res 1'b1 >>
-                    send l1.lane_req pair1
+                    send l1.lane_req pair1 >>
+                    set lane_valid := (*lane_valid) | 2
                 } else {
                     cycle 1
                 } >>
 
-                // Lane 2
+                // Load Lane 2 (if group_len >= 3)
                 if (*group_len >= 3'd3) {
                     let pair2 = recv elem.in_req >>
                     set remaining := *remaining - 8'd1 >>
                     send elem.in_res 1'b1 >>
-                    send l2.lane_req pair2
+                    send l2.lane_req pair2 >>
+                    set lane_valid := (*lane_valid) | 4
                 } else {
                     cycle 1
                 } >>
 
-                // Lane 3
+                // Load Lane 3 (if group_len >= 4)
                 if (*group_len >= 3'd4) {
                     let pair3 = recv elem.in_req >>
                     set remaining := *remaining - 8'd1 >>
                     send elem.in_res 1'b1 >>
-                    send l3.lane_req pair3
+                    send l3.lane_req pair3 >>
+                    set lane_valid := (*lane_valid) | 8
                 } else {
                     cycle 1
                 } >>
 
-                // Collect results
+                // ================================================================
+                // REDUCE: Collect products and accumulate
+                // ================================================================
+                // Collect from Lane 0 (always valid in this group)
                 let prod0 = recv l0.lane_res >>
-                set accum := *accum + prod0 >>
+                set accum := *accum + {{4{1'b0}}, prod0} >>
 
-                if (*group_len >= 3'd2) {
+                // Collect from Lane 1 (if valid)
+                if ((*lane_valid)[1] == 1'b1) {
                     let prod1 = recv l1.lane_res >>
-                    set accum := *accum + prod1
+                    set accum := *accum + {{4{1'b0}}, prod1}
                 } else {
                     cycle 1
                 } >>
 
-                if (*group_len >= 3'd3) {
+                // Collect from Lane 2 (if valid)
+                if ((*lane_valid)[2] == 1'b1) {
                     let prod2 = recv l2.lane_res >>
-                    set accum := *accum + prod2
+                    set accum := *accum + {{4{1'b0}}, prod2}
                 } else {
                     cycle 1
                 } >>
 
-                if (*group_len >= 3'd4) {
+                // Collect from Lane 3 (if valid)
+                if ((*lane_valid)[3] == 1'b1) {
                     let prod3 = recv l3.lane_res >>
-                    set accum := *accum + prod3
+                    set accum := *accum + {{4{1'b0}}, prod3}
                 } else {
                     cycle 1
                 }
             }
         } >>
 
+        // ===================================================================
+        // OUTPUT: Send result to output interface
+        // ===================================================================
         send res.out_req tagged_result::{ value = *accum; tag = *saved_tag } >>
         let _ = recv res.out_res >>
         cycle 1;
@@ -173,36 +203,36 @@ proc Top() {
     spawn DotProduct(cmd_le, elem_le, res_le, l0_le, l1_le, l2_le, l3_le);
 
     loop {
-        // Test 1
+        // Test 1: 4 elements (1*5 + 2*6 + 3*7 + 4*8 = 5+12+21+32 = 70)
         send cmd_ri.cmd_req command::{ length = 8'd4; tag = 4'd1 } >>
         let _ = recv cmd_ri.cmd_res >>
 
-        send elem_ri.in_req element_pair::{ a = 16'd1; b = 16'd5 } >>
+        send elem_ri.in_req element_pair::{ a = 8'd1; b = 8'd5 } >>
         let _ = recv elem_ri.in_res >>
-        send elem_ri.in_req element_pair::{ a = 16'd2; b = 16'd6 } >>
+        send elem_ri.in_req element_pair::{ a = 8'd2; b = 8'd6 } >>
         let _ = recv elem_ri.in_res >>
-        send elem_ri.in_req element_pair::{ a = 16'd3; b = 16'd7 } >>
+        send elem_ri.in_req element_pair::{ a = 8'd3; b = 8'd7 } >>
         let _ = recv elem_ri.in_res >>
-        send elem_ri.in_req element_pair::{ a = 16'd4; b = 16'd8 } >>
+        send elem_ri.in_req element_pair::{ a = 8'd4; b = 8'd8 } >>
         let _ = recv elem_ri.in_res >>
 
         let r1 = recv res_ri.out_req >>
-        send res_ri.out_res 1'b1 >>
+        send res_ri.out_res 1 >>
         cycle 1 >>
 
-        // Test 2
+        // Test 2: 3 elements (3*4 + 5*6 + 7*8 = 12+30+56 = 98)
         send cmd_ri.cmd_req command::{ length = 8'd3; tag = 4'd2 } >>
         let _ = recv cmd_ri.cmd_res >>
 
-        send elem_ri.in_req element_pair::{ a = 16'd3; b = 16'd4 } >>
+        send elem_ri.in_req element_pair::{ a = 8'd3; b = 8'd4 } >>
         let _ = recv elem_ri.in_res >>
-        send elem_ri.in_req element_pair::{ a = 16'd5; b = 16'd6 } >>
+        send elem_ri.in_req element_pair::{ a = 8'd5; b = 8'd6 } >>
         let _ = recv elem_ri.in_res >>
-        send elem_ri.in_req element_pair::{ a = 16'd7; b = 16'd8 } >>
+        send elem_ri.in_req element_pair::{ a = 8'd7; b = 8'd8 } >>
         let _ = recv elem_ri.in_res >>
 
         let r2 = recv res_ri.out_req >>
-        send res_ri.out_res 1'b1 >>
+        send res_ri.out_res 1 >>
         cycle 1 >>
 
         // Termination
