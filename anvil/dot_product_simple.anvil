@@ -1,0 +1,145 @@
+// =============================================================================
+// Vector Dot-Product Accelerator — Simplified Anvil Implementation
+// This version focuses on basic correctness and Anvil syntax compliance
+// =============================================================================
+
+struct element_pair {
+    a : logic[8],
+    b : logic[8]
+}
+
+struct command {
+    length : logic[8],
+    tag    : logic[4]
+}
+
+struct tagged_result {
+    value : logic[8],
+    tag   : logic[4]
+}
+
+// Simple channels
+chan cmd_ch {
+    left  cmd_req : (command @ cmd_req),
+    right cmd_res : (logic @ #1)
+}
+
+chan elem_ch {
+    left  in_req : (element_pair @ in_req),
+    right in_res : (logic @ #1)
+}
+
+chan lane_ch {
+    left  lane_req : (element_pair @ lane_req),
+    right lane_res : (logic[8] @ #1)
+}
+
+chan result_ch {
+    right out_req : (tagged_result @ out_req),
+    left  out_res : (logic @ #1)
+}
+
+// =============================================================================
+// LaneWorker Process - receives pairs and sends products
+// =============================================================================
+proc LaneWorker(lane : left lane_ch) {
+    loop {
+        let pair = recv lane.lane_req >>
+        let product = pair.a * pair.b >>
+        send lane.lane_res(product) >>
+        cycle 1
+    }
+}
+
+// =============================================================================
+// Main DotProduct Accelerator - Single flat loop version
+// =============================================================================
+proc DotProduct(
+    cmd  : left cmd_ch,
+    elem : left elem_ch,
+    res  : left result_ch,
+    l0   : right lane_ch,
+    l1   : right lane_ch,
+    l2   : right lane_ch,
+    l3   : right lane_ch
+) {
+    reg accum     : logic[8];
+    reg remaining : logic[8];
+    reg saved_tag : logic[4];
+    reg state     : logic[2];  // 0=idle, 1=loading, 2=sending
+    reg pair_buf  : element_pair;  // Buffer for received pair
+
+    loop {
+        if (*state == 2'd0) {
+            // IDLE: Wait for command
+            let cmd_data = recv cmd.cmd_req >>
+            set saved_tag := cmd_data.tag >>
+            set accum := 8'd0 >>
+            set remaining := cmd_data.length >>
+            set state := 2'd1 >>
+            cycle 1
+        } else {
+            if (*state == 2'd1) {
+                // LOADING: Process elements
+                if (*remaining == 8'd0) {
+                    // Done loading, move to send
+                    set state := 2'd2
+                } else {
+                    // Get pair and compute
+                    let pair0 = recv elem.in_req >>
+                    set pair_buf := pair0 >>
+                    set remaining := *remaining - 8'd1 >>
+                    send l0.lane_req(*pair_buf) >>
+                    let prod0 = recv l0.lane_res >>
+                    set accum := *accum + prod0 >>
+                    cycle 1
+                }
+            } else {
+                // SENDING: Send result
+                send res.out_req(tagged_result::{ value = *accum; tag = *saved_tag }) >>
+                let _ = recv res.out_res >>
+                set state := 2'd0 >>
+                cycle 1
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Top-level process with test vectors
+// =============================================================================
+proc Top() {
+    chan cmd_le  -- cmd_ri  : cmd_ch;
+    chan elem_le -- elem_ri : elem_ch;
+    chan res_le  -- res_ri  : result_ch;
+    chan l0_le   -- l0_ri   : lane_ch;
+    chan l1_le   -- l1_ri   : lane_ch;
+    chan l2_le   -- l2_ri   : lane_ch;
+    chan l3_le   -- l3_ri   : lane_ch;
+
+    spawn LaneWorker(l0_le);
+    spawn LaneWorker(l1_le);
+    spawn LaneWorker(l2_le);
+    spawn LaneWorker(l3_le);
+
+    spawn DotProduct(cmd_ri, elem_ri, res_ri, l0_ri, l1_ri, l2_ri, l3_ri);
+
+    loop {
+        // Test 1: Simple 2-element test
+        send cmd_le.cmd_req(command::{ length = 2; tag = 1 }) >>
+        let _ = recv cmd_le.cmd_res >>
+
+        send elem_le.in_req(element_pair::{ a = 2; b = 3 }) >>
+        let _ = recv elem_le.in_res >>
+        send elem_le.in_req(element_pair::{ a = 4; b = 5 }) >>
+        let _ = recv elem_le.in_res >>
+
+        let r1 = recv res_le.out_req >>
+        send res_le.out_res(1) >>
+        cycle 1 >>
+
+        // Termination
+        cycle 10 >>
+        dfinish
+    }
+}
