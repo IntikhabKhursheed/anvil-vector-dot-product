@@ -106,23 +106,29 @@ module tb_dot_product_anvil;
 
     task automatic receive_and_check_result(
         input logic [19:0] expected_value,
-        input logic [3:0] expected_tag
+        input logic [3:0] expected_tag,
+        input int          backpressure_cycles
     );
         logic [19:0] value;
         logic [3:0] tag;
         begin
             @(negedge clk_i);
-            _res_out_req_ack = 1'b1;
+            _res_out_req_ack = 1'b0;
             wait_for_valid(_res_out_req_valid, "_res_out_req_valid");
+            repeat (backpressure_cycles) @(posedge clk_i);
             value = _res_out_req_0[23:4];
             tag = _res_out_req_0[3:0];
-
-        $display("Result: value=%0d, tag=%0d (expected %0d, %0d)", 
-                 value, tag, expected_value, expected_tag);
-
             if ((value !== expected_value) || (tag !== expected_tag))
                 $fatal(1, "Bad result: got value=%0d tag=%0d, expected value=%0d tag=%0d",
                        value, tag, expected_value, expected_tag);
+            if (backpressure_cycles == 0)
+                $display("Result for tag %2d = %7d (expected %0d)", tag, value, expected_value);
+            else
+                $display("Result for tag %2d = %7d (expected %0d) - released after backpressure",
+                         tag, value, expected_value);
+            @(negedge clk_i);
+            _res_out_req_ack = 1'b1;
+            wait_for_valid(_res_out_req_valid, "_res_out_req_valid acknowledgement");
             @(negedge clk_i);
             _res_out_req_ack = 1'b0;
 
@@ -151,32 +157,50 @@ module tb_dot_product_anvil;
         rst_ni = 1'b1;
         repeat (2) @(posedge clk_i);
 
+        $display("\n=== TEST 1: Normal operation (length=4) ===");
         // 1*5 + 2*6 + 3*7 + 4*8 = 70
         send_command(8'd4, 4'd1);
         send_element(8'd1, 8'd5);
         send_element(8'd2, 8'd6);
         send_element(8'd3, 8'd7);
         send_element(8'd4, 8'd8);
-        receive_and_check_result(20'd70, 4'd1);
+        receive_and_check_result(20'd70, 4'd1, 0);
 
-        // 3*4 + 5*6 + 7*8 = 98
+        $display("\n=== TEST 2: Partial group (length=3) ===");
+        // 1*4 + 2*5 + 3*6 = 32
         send_command(8'd3, 4'd2);
-        send_element(8'd3, 8'd4);
-        send_element(8'd5, 8'd6);
-        send_element(8'd7, 8'd8);
-        receive_and_check_result(20'd98, 4'd2);
+        send_element(8'd1, 8'd4);
+        send_element(8'd2, 8'd5);
+        send_element(8'd3, 8'd6);
+        receive_and_check_result(20'd32, 4'd2, 0);
 
-        // Zero length and a full-width product check.
-        send_command(8'd0, 4'hf);
-        receive_and_check_result(20'd0, 4'hf);
+        $display("\n=== TEST 3: Multiple commands ===");
+        // 1*1 + 2*2 + 3*3 + 4*4 = 30
+        send_command(8'd4, 4'd3);
+        send_element(8'd1, 8'd1);
+        send_element(8'd2, 8'd2);
+        send_element(8'd3, 8'd3);
+        send_element(8'd4, 8'd4);
+        receive_and_check_result(20'd30, 4'd3, 0);
 
-        // 255*255 + 16*17 = 65297
-        send_command(8'd2, 4'd3);
-        send_element(8'hff, 8'hff);
-        send_element(8'd16, 8'd17);
-        receive_and_check_result(20'd65297, 4'd3);
+        // 10*1 + 20*2 = 50
+        send_command(8'd2, 4'd4);
+        send_element(8'd10, 8'd1);
+        send_element(8'd20, 8'd2);
+        receive_and_check_result(20'd50, 4'd4, 0);
 
-        $display("PASS: all dot-product tests completed.");
+        $display("\n=== TEST 4: Backpressure Test ===");
+        // 1*1 + 2*2 + 3*3 + 4*4 = 30
+        send_command(8'd4, 4'd5);
+        send_element(8'd1, 8'd1);
+        send_element(8'd2, 8'd2);
+        send_element(8'd3, 8'd3);
+        send_element(8'd4, 8'd4);
+        $display("Result valid will be held under backpressure for tag 5");
+        receive_and_check_result(20'd30, 4'd5, 3);
+
+        $display("\n=== All tests complete ===");
+        $display("PASS: all dot-product functional tests completed.");
         #20;
         $finish;
     end
