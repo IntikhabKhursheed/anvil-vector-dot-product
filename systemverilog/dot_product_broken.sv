@@ -114,7 +114,7 @@ module dot_product #(
             reduce_step_q <= 3'd0;
 
         end else if (state_q == IDLE && cmd_valid && cmd_ready) begin
-            accum_q       <= '0;
+            // BUG: accumulator not reset on new command
             reduce_step_q <= 3'd0;
 
         end else if (state_q == REDUCE) begin
