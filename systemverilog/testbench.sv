@@ -1,8 +1,5 @@
-// Code your testbench here
-// or browse Examples
-// =============================================================================
-// Testbench for Vector Dot-Product Accelerator
-// =============================================================================
+// Simple testbench for the dot-product accelerator
+// Exercises the basic functionality
 
 module dot_product_tb();
 
@@ -30,10 +27,10 @@ module dot_product_tb();
         .out_valid, .out_ready, .result, .out_tag
     );
 
-    // Clock
+    // Generate clock
     always #5 clk = ~clk;
 
-    // Test
+    // Main test sequence
     initial begin
         // Initialize
         clk = 0;
@@ -46,14 +43,12 @@ module dot_product_tb();
         a_data = 0;
         b_data = 0;
 
-        // Reset
+        // Wait for reset to finish
         #10 rst_n = 1;
         #10;
 
-        // =============================================================
-        // TEST 1: Normal operation (length = 4, one full group)
-        // Dot product: [1,2,3,4] · [5,6,7,8] = 1*5 + 2*6 + 3*7 + 4*8 = 70
-        // =============================================================
+        // Test 1: Full group of 4 elements
+        // [1,2,3,4] · [5,6,7,8] = 1*5 + 2*6 + 3*7 + 4*8 = 70
         $display("\n=== TEST 1: Normal operation (length=4) ===");
 
         // Send command
@@ -76,13 +71,11 @@ module dot_product_tb();
         $display("Result for tag %d = %d (expected 70)", out_tag, result);
         #10;
 
-        // =============================================================
-        // TEST 2: Partial group (length = 3)
+        // Test 2: Partial group of 3 elements
         // [1,2,3] · [4,5,6] = 1*4 + 2*5 + 3*6 = 4+10+18 = 32
-        // =============================================================
         $display("\n=== TEST 2: Partial group (length=3) ===");
 
-        // Wait for DUT to be ready
+        // Wait for the DUT to accept the command
         while (!cmd_ready) #10;
 
         cmd_valid = 1;
@@ -156,6 +149,8 @@ module dot_product_tb();
         #10;
 
         $display("\n=== All tests complete ===");
+        // Done
+        $display("\n=== Tests complete ===");
         $finish;
     end
 

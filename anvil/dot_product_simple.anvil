@@ -1,7 +1,5 @@
-// =============================================================================
-// Vector Dot-Product Accelerator — Simplified Anvil Implementation
-// This version focuses on basic correctness and Anvil syntax compliance
-// =============================================================================
+// Vector Dot-Product Accelerator - Simplified Anvil Version
+// Focuses on getting the syntax right before adding full features
 
 struct element_pair {
     a : logic[8],

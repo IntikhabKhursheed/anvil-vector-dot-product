@@ -1,10 +1,5 @@
-// =============================================================================
-// Vector Dot-Product Accelerator — Anvil Implementation
-// Equivalent to SystemVerilog dot_product.sv
-// DATA_W = 8 bits (element width)
-// Products = 16 bits
-// Accumulator = 20 bits
-// =============================================================================
+// Vector Dot-Product Accelerator in Anvil
+// Simple test version with basic correctness focus
 
 struct element_pair {
     a : logic[8],
