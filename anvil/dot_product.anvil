@@ -1,0 +1,188 @@
+// ================================================================
+// Vector Dot-Product Accelerator — 4-Lane Anvil Implementation
+// Based on official Anvil syntax from kisp-nus/anvil repository
+// ================================================================
+
+struct element_pair {
+    a : logic[16],
+    b : logic[16]
+}
+
+struct command {
+    length : logic[8],
+    tag    : logic[4]
+}
+
+// ================================================================
+// Channel Definitions
+// ================================================================
+
+chan cmd_ch {
+    left  cmd_req : (command @ cmd_res),
+    right cmd_res : (logic   @ #1)
+}
+
+chan lane_in_ch {
+    left  req  : (element_pair @ resp),
+    right resp : (logic        @ #1)
+}
+
+chan product_ch {
+    right product : (logic[32] @ ack),
+    left  ack     : (logic     @ #1)
+}
+
+chan result_ch {
+    right out_req : (logic[32] @ out_res),
+    left  out_res : (logic     @ #1)
+}
+
+// ================================================================
+// Lane Process (replicated 4 times)
+// ================================================================
+
+proc Lane0(input : left lane_in_ch, output : left product_ch) {
+    loop {
+        let pair = recv input.req >>
+        // Multiply using 32-bit zero extension
+        let product = (0[32] + pair.a) * (0[32] + pair.b) >>
+        send output.product(product) >>
+        let ack = recv output.ack >>
+        send input.resp(1'b1)
+    }
+}
+
+proc Lane1(input : left lane_in_ch, output : left product_ch) {
+    loop {
+        let pair = recv input.req >>
+        let product = (0[32] + pair.a) * (0[32] + pair.b) >>
+        send output.product(product) >>
+        let ack = recv output.ack >>
+        send input.resp(1'b1)
+    }
+}
+
+proc Lane2(input : left lane_in_ch, output : left product_ch) {
+    loop {
+        let pair = recv input.req >>
+        let product = (0[32] + pair.a) * (0[32] + pair.b) >>
+        send output.product(product) >>
+        let ack = recv output.ack >>
+        send input.resp(1'b1)
+    }
+}
+
+proc Lane3(input : left lane_in_ch, output : left product_ch) {
+    loop {
+        let pair = recv input.req >>
+        let product = (0[32] + pair.a) * (0[32] + pair.b) >>
+        send output.product(product) >>
+        let ack = recv output.ack >>
+        send input.resp(1'b1)
+    }
+}
+
+// ================================================================
+// Shared Reducer
+// ================================================================
+
+proc Reducer(
+    p0 : right product_ch,
+    p1 : right product_ch,
+    p2 : right product_ch,
+    p3 : right product_ch,
+    res : left result_ch
+) {
+    reg accum : logic[32];
+
+    loop {
+        set accum := 32'd0 >>
+
+        let prod0 = recv p0.product >>
+        set accum := *accum + prod0 >>
+        send p0.ack(1'b1) >>
+
+        let prod1 = recv p1.product >>
+        set accum := *accum + prod1 >>
+        send p1.ack(1'b1) >>
+
+        let prod2 = recv p2.product >>
+        set accum := *accum + prod2 >>
+        send p2.ack(1'b1) >>
+
+        let prod3 = recv p3.product >>
+        set accum := *accum + prod3 >>
+        send p3.ack(1'b1) >>
+
+        send res.out_req(*accum) >>
+        let ack = recv res.out_res
+    }
+}
+
+// ================================================================
+// Command Handler
+// ================================================================
+
+proc CommandHandler(cmd : left cmd_ch) {
+    reg saved_length : logic[8];
+    reg saved_tag    : logic[4];
+
+    loop {
+        let cmd_data = recv cmd.cmd_req >>
+        set saved_length := cmd_data.length >>
+        set saved_tag    := cmd_data.tag >>
+        send cmd.cmd_res(1'b1)
+    }
+}
+
+// ================================================================
+// Top Level
+// ================================================================
+
+proc DotProductTop() {
+    chan cmd_le -- cmd_ri : cmd_ch;
+
+    chan lane0_le -- lane0_ri : lane_in_ch;
+    chan lane1_le -- lane1_ri : lane_in_ch;
+    chan lane2_le -- lane2_ri : lane_in_ch;
+    chan lane3_le -- lane3_ri : lane_in_ch;
+
+    chan prod0_le -- prod0_ri : product_ch;
+    chan prod1_le -- prod1_ri : product_ch;
+    chan prod2_le -- prod2_ri : product_ch;
+    chan prod3_le -- prod3_ri : product_ch;
+
+    chan res_le -- res_ri : result_ch;
+
+    spawn CommandHandler(cmd_le);
+
+    spawn Lane0(lane0_le, prod0_le);
+    spawn Lane1(lane1_le, prod1_le);
+    spawn Lane2(lane2_le, prod2_le);
+    spawn Lane3(lane3_le, prod3_le);
+
+    spawn Reducer(prod0_ri, prod1_ri, prod2_ri, prod3_ri, res_le);
+
+    // Test: 1*5 + 2*6 + 3*7 + 4*8 = 70
+    loop {
+        send cmd_ri.cmd_req(command::{length=8'd4; tag=4'd1}) >>
+        let cmd_ack = recv cmd_ri.cmd_res >>
+
+        send lane0_ri.req(element_pair::{a=16'd1; b=16'd5}) >>
+        let ack0 = recv lane0_ri.resp >>
+
+        send lane1_ri.req(element_pair::{a=16'd2; b=16'd6}) >>
+        let ack1 = recv lane1_ri.resp >>
+
+        send lane2_ri.req(element_pair::{a=16'd3; b=16'd7}) >>
+        let ack2 = recv lane2_ri.resp >>
+
+        send lane3_ri.req(element_pair::{a=16'd4; b=16'd8}) >>
+        let ack3 = recv lane3_ri.resp >>
+
+        let result = recv res_ri.out_req >>
+        send res_ri.out_res(1'b1) >>
+        cycle 1 >>
+        dfinish
+    }
+}
