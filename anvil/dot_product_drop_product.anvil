@@ -1,0 +1,77 @@
+// INTENTIONALLY INCORRECT negative-control variant.
+//
+// It has the same channel contracts and timing as dot_product.anvil, but its
+// accumulator adds operand A rather than the product A*B.  This is a one-line
+// semantic mutation for validating that the functional/differential tests can
+// detect a timing-correct yet functionally incorrect Anvil design.
+
+struct element_pair {
+    a : logic[8],
+    b : logic[8]
+}
+
+struct command {
+    length : logic[8],
+    tag    : logic[4]
+}
+
+struct tagged_result {
+    value : logic[5][4],
+    tag   : logic[4]
+}
+
+chan cmd_ch {
+    left  cmd_req : (command @ cmd_req),
+    right cmd_res : (logic @ cmd_req)
+}
+
+chan elem_ch {
+    left  in_req : (element_pair @ in_req),
+    right in_res : (logic @ in_req)
+}
+
+chan result_ch {
+    right out_req : (tagged_result @ out_req),
+    left  out_res : (logic @ out_req)
+}
+
+proc DotProduct(
+    cmd  : left cmd_ch,
+    elem : left elem_ch,
+    res  : left result_ch
+) {
+    reg accum     : logic[5][4];
+    reg remaining : logic[8];
+    reg saved_tag : logic[4];
+    reg state     : logic[2];
+
+    loop {
+        if (*state == 2'd0) {
+            let cmd_data = recv cmd.cmd_req >>
+            set saved_tag := cmd_data.tag >>
+            set accum     := #{4'd0, 4'd0, 4'd0, 4'd0, 4'd0} >>
+            set remaining := cmd_data.length >>
+            send cmd.cmd_res(1'b1) >>
+            set state := 2'd1
+        } else {
+            if (*state == 2'd1) {
+                if (*remaining == 8'd0) {
+                    set state := 2'd2
+                } else {
+                    let pair = recv elem.in_req >>
+                    let p_a = #{4'd0, 4'd0, 4'd0, pair.a[4+:4], pair.a[0+:4]} >>
+                    let p_b = #{4'd0, 4'd0, 4'd0, pair.b[4+:4], pair.b[0+:4]} >>
+                    let prod = p_a * p_b >>
+                    // BUG: correct source uses '*accum + prod'.
+                    set accum := *accum + p_a >>
+                    set remaining := *remaining - 8'd1 >>
+                    send elem.in_res(1'b1)
+                }
+            } else {
+                send res.out_req(tagged_result::{ value = *accum; tag = *saved_tag }) >>
+                let _ = recv res.out_res >>
+                set state := 2'd0
+            }
+        }
+    }
+}
