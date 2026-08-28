@@ -1,0 +1,16 @@
+// Deliberately timing-unsafe Anvil example.
+// The response contract is tied to read_req, but the received value is sent
+// without preserving it for the required lifetime.
+
+chan memory_ch {
+    left read_req : (logic[8]@#1) @#0~2 - @dyn,
+    right read_resp : (logic[8]@read_req) @#read_req+1 - @#read_req+1
+}
+
+proc memory(endp: left memory_ch) {
+    loop {
+        let addr = recv endp.read_req >>
+        send endp.read_resp(addr) >>
+        cycle 1
+    }
+}

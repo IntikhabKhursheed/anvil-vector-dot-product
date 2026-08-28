@@ -67,3 +67,8 @@ SV only when demonstrating that the differential test fails.
 
 See [`observations/compiler_trace.md`](observations/compiler_trace.md) for a
 source-to-compiler-pass-to-generated-RTL trace of the multiplication.
+
+The three assignment observations are documented in
+[`observations/rejected_by_anvil.md`](observations/rejected_by_anvil.md),
+[`observations/accepted_but_wrong.md`](observations/accepted_but_wrong.md),
+and [`observations/compiler_trace.md`](observations/compiler_trace.md).
