@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 
-// Complete SVA testbench for the sequential Anvil-generated DotProduct.
+// Complete SVA testbench for sequential Anvil-generated DotProduct.
+// The six Part B safety intents are adapted to Anvil request/response ports.
 // Put dot_product_anvil.sv in EDA Playground's Design pane and this entire
 // file in its Testbench pane.  No extra files or bind statements are needed.
 module tb_dot_product_anvil;

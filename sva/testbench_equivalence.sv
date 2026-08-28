@@ -1,6 +1,9 @@
 `timescale 1ns/1ps
 
-// Differential testbench for Part C.
+// Part C matched-stimulus differential testbench.
+// One logical source fans out through two protocol adapters, preserving
+// command fields and ordered elements while allowing different DUT latency.
+// Each result is checked against the expected value and then against its peer.
 //
 // Paste BOTH RTL sources into EDA Playground's Design pane, in this order:
 //   1. systemverilog/dot_product.sv

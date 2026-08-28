@@ -1,3 +1,6 @@
+// Negative-control copy of the Part A accelerator.
+// The accumulator-reset mutation is intentional so the SVA suite can fail;
+// dot_product.sv remains the correct reference design.
 // Vector Dot-Product Accelerator
 // Uses 4 parallel multiply lanes with a shared accumulator
 // Handles backpressure on both input and output with ready/valid signals

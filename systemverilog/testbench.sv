@@ -1,5 +1,6 @@
-// Simple testbench for the dot-product accelerator
-// Exercises the basic functionality
+// Part A functional smoke test for the handwritten four-lane accelerator.
+// The matched-stimulus comparison with generated Anvil SV is in
+// sva/testbench_equivalence.sv.
 
 module dot_product_tb();
 

@@ -1,4 +1,6 @@
-// Vector Dot-Product Accelerator in Anvil.
+// Part C source: sequential Vector Dot-Product Accelerator in Anvil.
+// The compiler emits generated/dot_product_anvil.sv; that file is an artifact
+// for simulation rather than a second hand-maintained implementation.
 //
 // Each channel uses Anvil's normal dynamic two-way handshake.  A sender must
 // keep its payload and valid asserted until the rising edge at which ack is

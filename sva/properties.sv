@@ -1,5 +1,6 @@
-// Formal verification properties for the dot-product accelerator
-// These catch bugs if the design misbehaves
+// Reusable Part B assertion module for the handwritten SV interface.
+// P1-P6 describe protocol/state invariants; testbench_sva.sv supplies the
+// stimulus and binds these signals to a DUT.
 
 module properties (
     input logic                 clk,

@@ -1,5 +1,6 @@
 // =============================================================================
-// Testbench for Vector Dot-Product Accelerator (All-in-One)
+// Part B all-in-one test: handwritten RTL plus the six SVA properties.
+// It targets four-lane internals, unlike the interface-level Part C test.
 // =============================================================================
 
 module dot_product_tb();

@@ -1,4 +1,6 @@
-// Vector Dot-Product Accelerator
+// Part A reference RTL: Vector Dot-Product Accelerator.
+// This handwritten four-lane implementation is the behavioral reference for
+// the sequential Anvil implementation.
 // Uses 4 parallel multiply lanes with a shared accumulator
 // Handles backpressure on both input and output with ready/valid signals
 // Cleaned up to avoid SystemVerilog width warnings
@@ -30,6 +32,8 @@ module dot_product #(
     output logic [3:0]            out_tag          // tag from the command
 );
 
+    // Control flow: accept command, collect lanes, reduce products, then hold
+    // the result. Anvil has the same transaction meaning but different timing.
     // State machine: IDLE -> LOAD -> REDUCE -> OUTPUT -> IDLE
     typedef enum logic [1:0] {
         IDLE   = 2'b00,   // wait for command

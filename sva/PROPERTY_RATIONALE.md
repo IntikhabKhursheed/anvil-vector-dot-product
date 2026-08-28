@@ -1,8 +1,9 @@
 # SVA Property Rationale
 ## Vector Dot-Product Accelerator
 
-This document explains why each SVA property was chosen, what specific bug it
-prevents, and how a violation would appear during simulation.
+This document explains why each SVA property was chosen, what bug it catches,
+and how a violation appears during simulation. The executable checks are in
+`sva/properties.sv`.
 
 ---
 
@@ -55,15 +56,11 @@ the new computation begins. This ensures that each dot-product result is
 computed from a clean starting point and does not inherit anything from the
 previous operation.
 
-This property directly catches the bug in dot_product_broken.sv. That version
-removes the reset line, so the accumulator carries its final value from one
-command into the next. The effect compounds across commands. Test 1 ends with
-accum_q at 70. When Test 2 starts, the accumulator is still 70, so the result
-becomes 102 instead of 32. Each subsequent test makes the error worse.
-
-In the simulation of the broken design, Test 1 ends with accum_q at 70. When
-Test 2 starts, the accumulator still holds 70, so the result becomes 102
-instead of the correct 32. Each subsequent command compounds the error further.
+This property directly catches the bug in
+`systemverilog/dot_product_broken.s`. That version removes the command-time
+accumulator clear, so stale state can carry from one command into the next.
+For example, after a 70 result, a following 32-element test would start from
+stale state rather than zero.
 
 Property 3 fires at the cycle immediately after the command handshake, checking
 that accum_q is zero. On the broken design, it fails at exactly that point,
