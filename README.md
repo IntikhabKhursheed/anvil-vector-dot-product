@@ -10,7 +10,7 @@ vectors by the differential testbench.
 **SystemVerilog (Part A)**
 
 - `systemverilog/dot_product.sv` — four-lane reference accelerator.
-- `systemverilog/testbench.sv` — basic functional tests for that module.
+- `systemverilog/testbench.sv` — basic functional tests, including zero-length behavior.
 - `systemverilog/dot_product_broken.sv` — negative design with the accumulator
   reset intentionally removed for the Part B demonstration.
 

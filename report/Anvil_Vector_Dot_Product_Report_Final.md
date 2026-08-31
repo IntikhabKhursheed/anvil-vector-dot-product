@@ -18,7 +18,7 @@ The reference RTL is `systemverilog/dot_product.sv`. It moves through IDLE, LOAD
 
 The implementation exercises the exact combination requested by the assignment: concurrent arithmetic lanes, a shared reduction resource visited over multiple cycles, configurable vector length including partial final groups, and input/output backpressure.
 
-The reference testbench `systemverilog/testbench.sv` provides the functional baseline across four scenarios including a partial group, back-to-back commands, and a sustained backpressure stall. A separate broken variant `systemverilog/dot_product_broken.sv` removes the accumulator reset at the command-accept boundary; that defect is used in Part B to demonstrate a property violation.
+The reference testbench `systemverilog/testbench.sv` provides the functional baseline across five scenarios including a partial group, back-to-back commands, a sustained backpressure stall, and a zero-length command. A separate broken variant `systemverilog/dot_product_broken.sv` removes the accumulator reset at the command-accept boundary; that defect is used in Part B to demonstrate a property violation.
 
 ---
 
@@ -74,11 +74,12 @@ The differential testbench is `sva/testbench_equivalence.sv`. It uses one logica
 
 Because the two architectures have different timing and native protocols, the comparison is intentionally transaction-level rather than cycle-for-cycle. For every transaction, the testbench sends the same command and ordered element sequence to both DUTs, verifies the required handshake counts on both sides, checks each result independently against the mathematical expectation, and then compares the observed results and tags.
 
-The suite was executed in Verilator 5.044 through EDA Playground. All seven cases passed with no assertion failures:
+The suite was executed in Verilator 5.044 through EDA Playground. All eight cases passed with no assertion failures:
 
 | Case | Condition | Expected | Result |
 |---|---|---:|---|
 | 1 | Length 1 | 63 | SV=63, Anvil=63 — PASS |
+| 0 | Length 0, empty vector | 0 | SV=0, Anvil=0 — PASS |
 | 2 | Length 2, zero operands | 0 | SV=0, Anvil=0 — PASS |
 | 3 | Length 3, partial group | 32 | SV=32, Anvil=32 — PASS |
 | 4 | Length 4 | 70 | SV=70, Anvil=70 — PASS |
@@ -169,7 +170,7 @@ This trace demonstrates a concrete, non-trivial path from Anvil source syntax th
 | B. SVA specification + rationale | `sva/properties.sv` + `PROPERTY_RATIONALE.md` | Complete |
 | B. Broken design caught by a property | `dot_product_broken.sv`; P3 detects missing reset | Complete |
 | C. Anvil port + generated RTL | `anvil/dot_product.anvil` + generated RTL | Complete |
-| C. Matched stimulus / differential test | `testbench_equivalence.sv`; seven cases passed | Complete |
+| C. Matched stimulus / differential test | `testbench_equivalence.sv`; eight cases passed | Complete |
 | Observation 1: rejected by Anvil | `observations/rejected_by_anvil.md` | Complete |
 | Observation 2: accepted but wrong | `observations/accepted_but_wrong.md` | Complete |
 | Observation 3: compiler trace | `observations/compiler_trace.md` | Complete |
