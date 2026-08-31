@@ -149,6 +149,25 @@ module dot_product_tb();
         $display("Result for tag %d = %d (expected 30) - released after backpressure", out_tag, result);
         #10;
 
+        // =============================================================
+        // TEST 5: Zero-length vector
+        // =============================================================
+        // The empty dot product is zero and must not accept any elements.
+        $display("\n=== TEST 5: Zero-length vector ===");
+
+        while (!cmd_ready) #10;
+        cmd_valid = 1;
+        cmd_length = 0;
+        cmd_tag = 6;
+        #10;
+        cmd_valid = 0;
+
+        while (!out_valid) #10;
+        if ((result !== 0) || (out_tag !== 6))
+            $fatal(1, "Zero-length test failed: result=%0d tag=%0d", result, out_tag);
+        $display("Result for tag %d = %d (expected 0)", out_tag, result);
+        #10;
+
         $display("\n=== All tests complete ===");
         // Done
         $display("\n=== Tests complete ===");

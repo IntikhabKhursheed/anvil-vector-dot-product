@@ -345,6 +345,8 @@ module dot_product_equivalence_tb;
 
         run_matched_case("TEST 1: length 1", 8'd1, 4'd1, 20'd63, 0,
                          8'd9,8'd7, 8'd0,8'd0, 8'd0,8'd0, 8'd0,8'd0);
+        run_matched_case("TEST 0: zero-length vector", 8'd0, 4'd8, 20'd0, 0,
+                         8'd0,8'd0, 8'd0,8'd0, 8'd0,8'd0, 8'd0,8'd0);
         run_matched_case("TEST 2: length 2 with zero operands", 8'd2, 4'd2, 20'd0, 0,
                          8'd0,8'd17, 8'd13,8'd0, 8'd0,8'd0, 8'd0,8'd0);
         run_matched_case("TEST 3: partial group (length 3)", 8'd3, 4'd3, 20'd32, 0,

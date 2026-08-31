@@ -161,6 +161,12 @@ module dot_product #(
                 result_q  <= accum_q;
                 tag_out_q <= tag_q;
             end
+        end else if (state_q == IDLE && cmd_valid && cmd_ready && (cmd_length == 8'd0)) begin
+            // A zero-length vector is a valid dot product with value zero.
+            // Complete it directly rather than entering LOAD and accepting
+            // an element that was not requested.
+            result_q  <= '0;
+            tag_out_q <= cmd_tag;
         end
     end
 
@@ -182,8 +188,12 @@ module dot_product #(
 
         case (state_q)
             IDLE: begin
-                if (cmd_valid && cmd_ready)
-                    state_d = LOAD;
+                if (cmd_valid && cmd_ready) begin
+                    if (cmd_length == 8'd0)
+                        state_d = OUTPUT;
+                    else
+                        state_d = LOAD;
+                end
             end
 
             LOAD: begin
