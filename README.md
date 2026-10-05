@@ -53,10 +53,9 @@ The main EDA Playground / Verilator runs are summarized in
 - `anvil/generated/dot_product_drop_product_anvil.sv` — generated SV for that
   negative-control source.
 
-**Results and Presentation**
+**Results**
 
 - `results/SIMULATION_RESULTS.md` - concise record of passing and expected-failing runs.
-- `presentation/VIDEO_SCRIPT_15_MIN.md` - 15-minute recording outline.
 
 The verification flow is:
 
