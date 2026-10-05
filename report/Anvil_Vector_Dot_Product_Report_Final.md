@@ -174,6 +174,7 @@ This trace demonstrates a concrete, non-trivial path from Anvil source syntax th
 | Observation 1: rejected by Anvil | `observations/rejected_by_anvil.md` | Complete |
 | Observation 2: accepted but wrong | `observations/accepted_but_wrong.md` | Complete |
 | Observation 3: compiler trace | `observations/compiler_trace.md` | Complete |
+| Simulation evidence summary | `results/SIMULATION_RESULTS.md` | Complete |
 | README + repository structure | `README.md` | Complete |
 
 The key finding is that Anvil removes a class of timing and lifetime mistakes from the manual verification burden, but it does not replace functional specification. The two responsibilities are complementary rather than competing.
@@ -223,6 +224,8 @@ anvil-vector-dot-product/
 Anvil compiler revision used: `d138cabedbfc3b65c08249ce6a55cb90dad959da` (recorded in `observations/compiler_trace.md`).
 
 Simulation tool: Verilator 5.044 via EDA Playground with `--assert`.
+
+Additional documentation artifacts: `results/SIMULATION_RESULTS.md` records the passing and expected-failing simulation evidence
 
 The final evidence set consists of source implementations, executable SVA properties, compiler-generated RTL, intentionally broken designs, actual compiler diagnostics, and matched differential simulation results. Together these directly address the investigation question: **Anvil removes an important class of timing and lifetime hazards from the manual verification burden, while functional correctness remains an independent obligation that requires explicit specification and testing.**
 

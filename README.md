@@ -5,6 +5,20 @@ assertion-based verification, and a sequential implementation written in
 Anvil HDL.  The two implementations are tested with the same transaction
 vectors by the differential testbench.
 
+## Quick Evidence
+
+The main EDA Playground / Verilator runs are summarized in
+`results/SIMULATION_RESULTS.md`.
+
+| Evidence | Expected result |
+|---|---|
+| `systemverilog/dot_product.sv` + `systemverilog/testbench.sv` | PASS |
+| `systemverilog/dot_product.sv` + `sva/testbench_sva.sv` | PASS |
+| `systemverilog/dot_product_broken.sv` + `sva/testbench_sva.sv` | FAIL at P3, as intended |
+| `anvil/generated/dot_product_anvil.sv` + `tests/tb_dot_product_anvil.sv` | PASS |
+| `systemverilog/dot_product.sv` + `anvil/generated/dot_product_anvil.sv` + `sva/testbench_equivalence.sv` | PASS |
+| `systemverilog/dot_product.sv` + `anvil/generated/dot_product_drop_product_anvil.sv` + `sva/testbench_equivalence.sv` | FAIL, as intended |
+
 ## Repository Structure
 
 **SystemVerilog (Part A)**
@@ -38,6 +52,11 @@ vectors by the differential testbench.
   negative-control source; it drops the product term.
 - `anvil/generated/dot_product_drop_product_anvil.sv` — generated SV for that
   negative-control source.
+
+**Results and Presentation**
+
+- `results/SIMULATION_RESULTS.md` - concise record of passing and expected-failing runs.
+- `presentation/VIDEO_SCRIPT_15_MIN.md` - 15-minute recording outline.
 
 The verification flow is:
 
