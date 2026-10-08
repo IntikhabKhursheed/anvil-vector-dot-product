@@ -80,7 +80,7 @@ The runs were first made in EDA Playground (Verilator 5.044) and are summarized 
 **Observations, report, and results**
 
 - `observations/` — the three assignment observations (see below).
-- `report/Anvil_Vector_Dot_Product_Report_Final.md` — the report.
+- `report/Anvil_Vector_Dot_Product_Report.pdf` — the report.
 - `results/SIMULATION_RESULTS.md` — concise record of passing and expected-failing runs.
 - `PROVENANCE.md` — what was reused, what AI assisted with, and what I did myself.
 - `run_all.sh` — runs every simulation and checks the expected outcome.
